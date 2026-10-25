@@ -1,5 +1,5 @@
-$ErrorActionPreference = "Stop"
-Write-Host "KanaiHelper v2.0 빌드 시작..." -ForegroundColor Cyan
+﻿$ErrorActionPreference = "Stop"
+Write-Host "KanaiHelper v1.0 鍮뚮뱶 ?쒖옉..." -ForegroundColor Cyan
 
 $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 $wpfDir = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\WPF"
@@ -39,8 +39,9 @@ foreach ($s in $srcFiles) {
 & $csc $args
 
 if ($LASTEXITCODE -eq 0) {
-    Write-Host "[성공] KanaiHelper.exe 빌드가 완료되었습니다!" -ForegroundColor Green
+    Write-Host "[?깃났] KanaiHelper.exe 鍮뚮뱶媛 ?꾨즺?섏뿀?듬땲??" -ForegroundColor Green
     Get-Item $outExe | Select-Object Name, Length, LastWriteTime | Format-Table -AutoSize
 } else {
-    Write-Host "[오류] 빌드 실패 (ExitCode: $LASTEXITCODE)" -ForegroundColor Red
+    Write-Host "[?ㅻ쪟] 鍮뚮뱶 ?ㅽ뙣 (ExitCode: $LASTEXITCODE)" -ForegroundColor Red
 }
+

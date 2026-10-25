@@ -1,7 +1,9 @@
-using System;
+﻿using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -18,21 +20,50 @@ namespace KanaiHelper
         private readonly GlobalHook _hook;
         private System.Windows.Forms.NotifyIcon _notifyIcon;
 
-        // UI Controls
+        // UI Controls - Header & Status
         private TextBlock _statusBadge;
         private Border _statusBorder;
         private TextBlock _d3Indicator;
+        private Button _btnLang;
         private ProgressBar _progressBar;
         private TextBox _logBox;
         private Slider _sleepSlider;
         private TextBlock _sleepText;
+        private TextBlock _sleepLabelText;
         private CheckBox _trayCheckBox;
+        private TextBlock _escNoticePrefix;
+        private TextBlock _escNoticeSuffix;
+
+        // Card Text Elements (for dynamic language switching)
+        private TextBlock _card1Title;
+        private TextBlock _card1Desc;
+        private TextBlock _card1Sub;
+        private Button _card1Run;
+
+        private TextBlock _card2Title;
+        private TextBlock _card2Desc;
+        private TextBlock _card2Sub;
+        private Button _card2Run;
+
+        private TextBlock _card3Title;
+        private TextBlock _card3Desc;
+        private TextBlock _card3Sub;
+        private Button _card3Run;
+
+        private TextBlock _card4Title;
+        private TextBlock _card4Desc;
+        private TextBlock _card4Sub;
+        private Button _card4Run;
 
         // Hotkey Button Labels
         private TextBlock _hk1Text;
         private TextBlock _hk2Text;
         private TextBlock _hk3Text;
         private TextBlock _hk4Text;
+
+        // Tray Menu Items
+        private System.Windows.Forms.MenuItem _trayOpenItem;
+        private System.Windows.Forms.MenuItem _trayExitItem;
 
         private Button _activeRecordingButton = null;
         private int _recordingIndex = 0;
@@ -47,11 +78,12 @@ namespace KanaiHelper
             SetupEvents();
             SetupTrayIcon();
             StartD3Watcher();
+            ApplyLocalization();
         }
 
         private void InitializeComponent()
         {
-            Title = "KanaiHelper v2.0";
+            Title = "KanaiHelper v1.0";
             Width = 840;
             Height = 680;
             MinWidth = 800;
@@ -83,17 +115,17 @@ namespace KanaiHelper
                     Color = System.Windows.Media.Colors.Black,
                     BlurRadius = 24,
                     ShadowDepth = 4,
-                    Opacity = 0.65
+                    Opacity = 0.5
                 }
             };
 
             Grid mainGrid = new Grid();
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(64) }); // Header
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Content
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(80) }); // Settings Bar
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(140) }); // Log Console
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(56) }); // Custom Title Bar
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Macro Dashboard Cards
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Settings Bar
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(125) }); // Activity Log Console
 
-            // 1. Header
+            // 1. Title Bar
             mainGrid.Children.Add(CreateHeader());
             Grid.SetRow(mainGrid.Children[0], 0);
 
@@ -146,7 +178,7 @@ namespace KanaiHelper
 
             TextBlock logoIcon = new TextBlock
             {
-                Text = "⚡",
+                Text = "\u26A1",
                 FontSize = 22,
                 Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(243, 156, 18)),
                 Margin = new Thickness(0, 0, 10, 0),
@@ -165,7 +197,7 @@ namespace KanaiHelper
 
             TextBlock badgeVersion = new TextBlock
             {
-                Text = "v2.0 NATIVE",
+                Text = "v1.0 NATIVE",
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(243, 156, 18)),
@@ -177,7 +209,7 @@ namespace KanaiHelper
 
             _d3Indicator = new TextBlock
             {
-                Text = "● D3 감지 대기 중...",
+                Text = I18n.D3Detecting,
                 FontSize = 12,
                 Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(140, 148, 165)),
                 VerticalAlignment = VerticalAlignment.Center
@@ -190,12 +222,56 @@ namespace KanaiHelper
             headerGrid.Children.Add(titleStack);
             Grid.SetColumn(titleStack, 0);
 
-            // Right Action Stack (Status Badge + Window Controls)
+            // Right Action Stack (Language Toggle + Status Badge + Window Controls)
             StackPanel rightStack = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
                 VerticalAlignment = VerticalAlignment.Center
             };
+
+            // Language Toggle Button
+            SolidColorBrush normalLangBg = new SolidColorBrush(System.Windows.Media.Color.FromRgb(38, 46, 62));
+            SolidColorBrush normalLangBorder = new SolidColorBrush(System.Windows.Media.Color.FromRgb(62, 76, 102));
+            SolidColorBrush normalLangFg = new SolidColorBrush(System.Windows.Media.Color.FromRgb(220, 225, 235));
+
+            SolidColorBrush hoverLangBg = new SolidColorBrush(System.Windows.Media.Color.FromRgb(53, 65, 90));
+            SolidColorBrush hoverLangBorder = new SolidColorBrush(System.Windows.Media.Color.FromRgb(243, 156, 18));
+            SolidColorBrush hoverLangFg = new SolidColorBrush(System.Windows.Media.Color.FromRgb(243, 156, 18));
+
+            _btnLang = new Button
+            {
+                Template = CreateButtonTemplate(6),
+                Content = I18n.LangToggleBtn,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = normalLangFg,
+                Background = normalLangBg,
+                BorderBrush = normalLangBorder,
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(10, 4, 10, 4),
+                Margin = new Thickness(0, 0, 12, 0),
+                Cursor = Cursors.Hand
+            };
+            _btnLang.MouseEnter += delegate
+            {
+                _btnLang.Background = hoverLangBg;
+                _btnLang.BorderBrush = hoverLangBorder;
+                _btnLang.Foreground = hoverLangFg;
+            };
+            _btnLang.MouseLeave += delegate
+            {
+                _btnLang.Background = normalLangBg;
+                _btnLang.BorderBrush = normalLangBorder;
+                _btnLang.Foreground = normalLangFg;
+            };
+            _btnLang.Click += delegate
+            {
+                _config.Language = I18n.IsKorean ? "en" : "ko";
+                I18n.Language = _config.Language;
+                _config.Save();
+                ApplyLocalization();
+            };
+            rightStack.Children.Add(_btnLang);
 
             _statusBorder = new Border
             {
@@ -210,7 +286,7 @@ namespace KanaiHelper
 
             _statusBadge = new TextBlock
             {
-                Text = "대기 중 (IDLE)",
+                Text = I18n.StatusIdle,
                 FontSize = 12,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 204, 113))
@@ -219,7 +295,7 @@ namespace KanaiHelper
             rightStack.Children.Add(_statusBorder);
 
             // Minimize Button
-            Button btnMin = CreateFlatButton("─", delegate
+            Button btnMin = CreateFlatButton("?", delegate
             {
                 WindowState = WindowState.Minimized;
             });
@@ -227,14 +303,14 @@ namespace KanaiHelper
             rightStack.Children.Add(btnMin);
 
             // Close Button
-            Button btnClose = CreateFlatButton("✕", delegate
+            Button btnClose = CreateFlatButton("\u2715", delegate
             {
                 if (_config.MinimizeToTray)
                 {
                     Hide();
                     if (_notifyIcon != null)
                     {
-                        _notifyIcon.ShowBalloonTip(1500, "KanaiHelper", "백그라운드 트레이로 최소화되었습니다.", System.Windows.Forms.ToolTipIcon.Info);
+                        _notifyIcon.ShowBalloonTip(1500, I18n.TrayBalloonTitle, I18n.TrayBalloonText, System.Windows.Forms.ToolTipIcon.Info);
                     }
                 }
                 else
@@ -262,65 +338,69 @@ namespace KanaiHelper
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-            // Card 1: 1-Slot Cube
+            // Card 1: Salvage (Row 0, Col 0 - Most used)
             _hk1Text = new TextBlock();
             UIElement card1 = CreateMacroCard(
-                "💎  1칸 아이템 큐브 변환",
-                "반지, 목걸이 등 1칸 아이템 60칸 일괄 변환",
-                "세로 우선 탐색 (열 단위 순회)",
-                _config.Hotkey1Slot.ToDisplayString(),
+                I18n.Card1Title,
+                I18n.Card1Desc,
+                I18n.Card1Sub,
+                _config.HotkeySalvage.ToDisplayString(),
                 _hk1Text,
                 1,
-                System.Windows.Media.Color.FromRgb(243, 156, 18),
-                delegate { _engine.Start(MacroMode.Cube1Slot); }
+                System.Windows.Media.Color.FromRgb(52, 152, 219),
+                delegate { _engine.Start(MacroMode.Salvage); },
+                out _card1Title, out _card1Desc, out _card1Sub, out _card1Run
             );
             grid.Children.Add(card1);
             Grid.SetRow(card1, 0);
             Grid.SetColumn(card1, 0);
 
-            // Card 2: 2-Slot Cube
+            // Card 2: 1-Slot Cube (Row 0, Col 1)
             _hk2Text = new TextBlock();
             UIElement card2 = CreateMacroCard(
-                "⚔️  2칸 아이템 큐브 변환",
-                "무기, 방어구 등 2칸 아이템 30칸 일괄 변환",
-                "가로 우선 탐색 (2행씩 건너뜀)",
-                _config.Hotkey2Slot.ToDisplayString(),
+                I18n.Card2Title,
+                I18n.Card2Desc,
+                I18n.Card2Sub,
+                _config.Hotkey1Slot.ToDisplayString(),
                 _hk2Text,
                 2,
-                System.Windows.Media.Color.FromRgb(230, 126, 34),
-                delegate { _engine.Start(MacroMode.Cube2Slot); }
+                System.Windows.Media.Color.FromRgb(243, 156, 18),
+                delegate { _engine.Start(MacroMode.Cube1Slot); },
+                out _card2Title, out _card2Desc, out _card2Sub, out _card2Run
             );
             grid.Children.Add(card2);
             Grid.SetRow(card2, 0);
             Grid.SetColumn(card2, 1);
 
-            // Card 3: Salvage
+            // Card 3: 2-Slot Cube (Row 1, Col 0)
             _hk3Text = new TextBlock();
             UIElement card3 = CreateMacroCard(
-                "🔨  인벤토리 일괄 분해",
-                "대장장이 분해 버튼 클릭 후 60칸 전체 분해",
-                "가로 우선 탐색 (1행씩 순차 분해)",
-                _config.HotkeySalvage.ToDisplayString(),
+                I18n.Card3Title,
+                I18n.Card3Desc,
+                I18n.Card3Sub,
+                _config.Hotkey2Slot.ToDisplayString(),
                 _hk3Text,
                 3,
-                System.Windows.Media.Color.FromRgb(52, 152, 219),
-                delegate { _engine.Start(MacroMode.Salvage); }
+                System.Windows.Media.Color.FromRgb(230, 126, 34),
+                delegate { _engine.Start(MacroMode.Cube2Slot); },
+                out _card3Title, out _card3Desc, out _card3Sub, out _card3Run
             );
             grid.Children.Add(card3);
             Grid.SetRow(card3, 1);
             Grid.SetColumn(card3, 0);
 
-            // Card 4: Reforge
+            // Card 4: Reforge (Row 1, Col 1)
             _hk4Text = new TextBlock();
             UIElement card4 = CreateMacroCard(
-                "✨  전설 아이템 재련 1회",
-                "인벤토리 맨 왼쪽 위 첫 번째 슬롯 아이템 재련",
-                "재련 후 첫 번째 슬롯으로 마우스 복귀",
+                I18n.Card4Title,
+                I18n.Card4Desc,
+                I18n.Card4Sub,
                 _config.HotkeyReforge.ToDisplayString(),
                 _hk4Text,
                 4,
                 System.Windows.Media.Color.FromRgb(155, 89, 182),
-                delegate { _engine.Start(MacroMode.Reforge); }
+                delegate { _engine.Start(MacroMode.Reforge); },
+                out _card4Title, out _card4Desc, out _card4Sub, out _card4Run
             );
             grid.Children.Add(card4);
             Grid.SetRow(card4, 1);
@@ -330,7 +410,8 @@ namespace KanaiHelper
         }
 
         private UIElement CreateMacroCard(string title, string desc, string subdesc, string hotkeyStr,
-            TextBlock hkDisplay, int hkIndex, System.Windows.Media.Color accentColor, Action onRun)
+            TextBlock hkDisplay, int hkIndex, System.Windows.Media.Color accentColor, Action onRun,
+            out TextBlock titleOut, out TextBlock descOut, out TextBlock subdescOut, out Button runBtnOut)
         {
             Border card = new Border
             {
@@ -357,6 +438,7 @@ namespace KanaiHelper
                 Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(235, 240, 245)),
                 Margin = new Thickness(0, 0, 0, 4)
             };
+            titleOut = titleBlock;
             cardGrid.Children.Add(titleBlock);
             Grid.SetRow(titleBlock, 0);
 
@@ -369,13 +451,17 @@ namespace KanaiHelper
                 Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(160, 168, 185)),
                 TextWrapping = TextWrapping.Wrap
             };
+            descOut = descBlock;
+
             TextBlock subdescBlock = new TextBlock
             {
-                Text = "• " + subdesc,
+                Text = "??" + subdesc,
                 FontSize = 11,
                 Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(115, 125, 145)),
                 Margin = new Thickness(0, 2, 0, 0)
             };
+            subdescOut = subdescBlock;
+
             descStack.Children.Add(descBlock);
             descStack.Children.Add(subdescBlock);
             cardGrid.Children.Add(descStack);
@@ -387,10 +473,19 @@ namespace KanaiHelper
             footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             // Hotkey Button
+            SolidColorBrush normalHkBg = new SolidColorBrush(System.Windows.Media.Color.FromArgb(35, accentColor.R, accentColor.G, accentColor.B));
+            SolidColorBrush normalHkBorder = new SolidColorBrush(accentColor);
+            SolidColorBrush normalHkFg = new SolidColorBrush(accentColor);
+
+            SolidColorBrush hoverHkBg = new SolidColorBrush(accentColor);
+            SolidColorBrush hoverHkBorder = new SolidColorBrush(System.Windows.Media.Colors.White);
+            SolidColorBrush hoverHkFg = new SolidColorBrush(System.Windows.Media.Color.FromRgb(17, 19, 23));
+
             Button hkBtn = new Button
             {
-                Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(40, accentColor.R, accentColor.G, accentColor.B)),
-                BorderBrush = new SolidColorBrush(accentColor),
+                Template = CreateButtonTemplate(6),
+                Background = normalHkBg,
+                BorderBrush = normalHkBorder,
                 BorderThickness = new Thickness(1),
                 Height = 32,
                 Cursor = Cursors.Hand,
@@ -399,9 +494,28 @@ namespace KanaiHelper
             hkDisplay.Text = hotkeyStr;
             hkDisplay.FontSize = 12;
             hkDisplay.FontWeight = FontWeights.Bold;
-            hkDisplay.Foreground = new SolidColorBrush(accentColor);
-            hkDisplay.Margin = new Thickness(10, 0, 10, 0);
+            hkDisplay.Foreground = normalHkFg;
+            hkDisplay.Margin = new Thickness(12, 0, 12, 0);
             hkBtn.Content = hkDisplay;
+
+            hkBtn.MouseEnter += delegate
+            {
+                if (_activeRecordingButton != hkBtn)
+                {
+                    hkBtn.Background = hoverHkBg;
+                    hkBtn.BorderBrush = hoverHkBorder;
+                    hkDisplay.Foreground = hoverHkFg;
+                }
+            };
+            hkBtn.MouseLeave += delegate
+            {
+                if (_activeRecordingButton != hkBtn)
+                {
+                    hkBtn.Background = normalHkBg;
+                    hkBtn.BorderBrush = normalHkBorder;
+                    hkDisplay.Foreground = normalHkFg;
+                }
+            };
 
             hkBtn.Click += delegate
             {
@@ -412,23 +526,45 @@ namespace KanaiHelper
             Grid.SetColumn(hkBtn, 0);
 
             // Run Button
+            SolidColorBrush normalRunBg = new SolidColorBrush(System.Windows.Media.Color.FromRgb(36, 44, 60));
+            SolidColorBrush normalRunBorder = new SolidColorBrush(System.Windows.Media.Color.FromRgb(58, 70, 94));
+            SolidColorBrush normalRunFg = new SolidColorBrush(System.Windows.Media.Color.FromRgb(225, 232, 242));
+
+            SolidColorBrush hoverRunBg = new SolidColorBrush(System.Windows.Media.Color.FromRgb(39, 174, 96));
+            SolidColorBrush hoverRunBorder = new SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 204, 113));
+            SolidColorBrush hoverRunFg = new SolidColorBrush(System.Windows.Media.Colors.White);
+
             Button runBtn = new Button
             {
-                Content = "▶ 실행",
+                Template = CreateButtonTemplate(6),
+                Content = I18n.RunButton,
                 FontSize = 12,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(System.Windows.Media.Colors.White),
-                Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(40, 48, 65)),
-                BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(60, 72, 95)),
+                Foreground = normalRunFg,
+                Background = normalRunBg,
+                BorderBrush = normalRunBorder,
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(14, 4, 14, 4),
                 Height = 32,
                 Cursor = Cursors.Hand
             };
+            runBtn.MouseEnter += delegate
+            {
+                runBtn.Background = hoverRunBg;
+                runBtn.BorderBrush = hoverRunBorder;
+                runBtn.Foreground = hoverRunFg;
+            };
+            runBtn.MouseLeave += delegate
+            {
+                runBtn.Background = normalRunBg;
+                runBtn.BorderBrush = normalRunBorder;
+                runBtn.Foreground = normalRunFg;
+            };
             runBtn.Click += delegate
             {
                 onRun();
             };
+            runBtnOut = runBtn;
             footerGrid.Children.Add(runBtn);
             Grid.SetColumn(runBtn, 1);
 
@@ -457,12 +593,15 @@ namespace KanaiHelper
             // Left: GlobalSleep Slider
             StackPanel sleepPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             StackPanel labelRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
-            labelRow.Children.Add(new TextBlock
+            
+            _sleepLabelText = new TextBlock
             {
-                Text = "⏱ 클릭 간 대기 지연 (GlobalSleep): ",
+                Text = I18n.SleepLabel,
                 FontSize = 12,
                 Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(180, 188, 205))
-            });
+            };
+            labelRow.Children.Add(_sleepLabelText);
+
             _sleepText = new TextBlock
             {
                 Text = _config.GlobalSleep + " ms",
@@ -501,12 +640,14 @@ namespace KanaiHelper
             StackPanel rightPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
 
             StackPanel statusRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
-            statusRow.Children.Add(new TextBlock
+            _escNoticePrefix = new TextBlock
             {
-                Text = "취소 안내: 언제든 게임 중 ",
+                Text = I18n.EscNoticePrefix,
                 FontSize = 12,
                 Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(140, 150, 170))
-            });
+            };
+            statusRow.Children.Add(_escNoticePrefix);
+
             statusRow.Children.Add(new TextBlock
             {
                 Text = "ESC",
@@ -514,12 +655,14 @@ namespace KanaiHelper
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(231, 76, 60))
             });
-            statusRow.Children.Add(new TextBlock
+
+            _escNoticeSuffix = new TextBlock
             {
-                Text = " 키를 누르면 1ms 이내 즉각 중단",
+                Text = I18n.EscNoticeSuffix,
                 FontSize = 12,
                 Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(140, 150, 170))
-            });
+            };
+            statusRow.Children.Add(_escNoticeSuffix);
             rightPanel.Children.Add(statusRow);
 
             _progressBar = new ProgressBar
@@ -536,7 +679,7 @@ namespace KanaiHelper
 
             _trayCheckBox = new CheckBox
             {
-                Content = "닫기(X) 시 트레이 아이콘으로 최소화 (백그라운드 유지)",
+                Content = I18n.TrayOption,
                 IsChecked = _config.MinimizeToTray,
                 FontSize = 11,
                 Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(140, 150, 170)),
@@ -572,23 +715,56 @@ namespace KanaiHelper
                 IsReadOnly = true,
                 TextWrapping = TextWrapping.Wrap,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                Text = "KanaiHelper v2.0이 준비되었습니다.\r\n디아블로 III를 창 모드 또는 전체 창 모드로 실행한 후 단축키를 사용하세요.\r\n"
+                Text = "KanaiHelper v1.0 Ready.\r\n"
             };
 
             logBorder.Child = _logBox;
             return logBorder;
         }
 
+        private static ControlTemplate CreateButtonTemplate(int cornerRadius = 6)
+        {
+            ControlTemplate template = new ControlTemplate(typeof(Button));
+            FrameworkElementFactory border = new FrameworkElementFactory(typeof(Border));
+            border.SetValue(Border.CornerRadiusProperty, new CornerRadius(cornerRadius));
+            border.SetBinding(Border.BackgroundProperty, new System.Windows.Data.Binding("Background") { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.TemplatedParent) });
+            border.SetBinding(Border.BorderBrushProperty, new System.Windows.Data.Binding("BorderBrush") { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.TemplatedParent) });
+            border.SetBinding(Border.BorderThicknessProperty, new System.Windows.Data.Binding("BorderThickness") { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.TemplatedParent) });
+            border.SetBinding(Border.PaddingProperty, new System.Windows.Data.Binding("Padding") { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.TemplatedParent) });
+
+            FrameworkElementFactory contentPresenter = new FrameworkElementFactory(typeof(ContentPresenter));
+            contentPresenter.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            contentPresenter.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+
+            border.AppendChild(contentPresenter);
+            template.VisualTree = border;
+            return template;
+        }
+
+        private System.Windows.Media.Color GetAccentColorForIndex(int index)
+        {
+            switch (index)
+            {
+                case 1: return System.Windows.Media.Color.FromRgb(52, 152, 219); // 1: Salvage (Blue)
+                case 2: return System.Windows.Media.Color.FromRgb(243, 156, 18); // 2: 1-Slot (Gold)
+                case 3: return System.Windows.Media.Color.FromRgb(230, 126, 34); // 3: 2-Slot (Orange)
+                case 4: return System.Windows.Media.Color.FromRgb(155, 89, 182); // 4: Reforge (Purple)
+                default: return System.Windows.Media.Colors.White;
+            }
+        }
+
         private Button CreateFlatButton(string text, Action onClick, bool isClose = false)
         {
             Button btn = new Button
             {
+                Template = CreateButtonTemplate(4),
                 Content = text,
                 Width = 32,
                 Height = 32,
                 FontSize = 13,
                 Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(180, 190, 205)),
                 Background = System.Windows.Media.Brushes.Transparent,
+                BorderBrush = System.Windows.Media.Brushes.Transparent,
                 BorderThickness = new Thickness(0),
                 Cursor = Cursors.Hand
             };
@@ -599,7 +775,7 @@ namespace KanaiHelper
             {
                 btn.Background = isClose
                     ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(231, 76, 60))
-                    : new SolidColorBrush(System.Windows.Media.Color.FromRgb(40, 48, 65));
+                    : new SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 56, 75));
                 btn.Foreground = System.Windows.Media.Brushes.White;
             };
             btn.MouseLeave += delegate
@@ -666,16 +842,63 @@ namespace KanaiHelper
             };
         }
 
+        private void ApplyLocalization()
+        {
+            if (_btnLang != null) _btnLang.Content = I18n.LangToggleBtn;
+
+            if (_card1Title != null) _card1Title.Text = I18n.Card1Title;
+            if (_card1Desc != null) _card1Desc.Text = I18n.Card1Desc;
+            if (_card1Sub != null) _card1Sub.Text = "??" + I18n.Card1Sub;
+            if (_card1Run != null) _card1Run.Content = I18n.RunButton;
+
+            if (_card2Title != null) _card2Title.Text = I18n.Card2Title;
+            if (_card2Desc != null) _card2Desc.Text = I18n.Card2Desc;
+            if (_card2Sub != null) _card2Sub.Text = "??" + I18n.Card2Sub;
+            if (_card2Run != null) _card2Run.Content = I18n.RunButton;
+
+            if (_card3Title != null) _card3Title.Text = I18n.Card3Title;
+            if (_card3Desc != null) _card3Desc.Text = I18n.Card3Desc;
+            if (_card3Sub != null) _card3Sub.Text = "??" + I18n.Card3Sub;
+            if (_card3Run != null) _card3Run.Content = I18n.RunButton;
+
+            if (_card4Title != null) _card4Title.Text = I18n.Card4Title;
+            if (_card4Desc != null) _card4Desc.Text = I18n.Card4Desc;
+            if (_card4Sub != null) _card4Sub.Text = "??" + I18n.Card4Sub;
+            if (_card4Run != null) _card4Run.Content = I18n.RunButton;
+
+            if (_sleepLabelText != null) _sleepLabelText.Text = I18n.SleepLabel;
+            if (_escNoticePrefix != null) _escNoticePrefix.Text = I18n.EscNoticePrefix;
+            if (_escNoticeSuffix != null) _escNoticeSuffix.Text = I18n.EscNoticeSuffix;
+            if (_trayCheckBox != null) _trayCheckBox.Content = I18n.TrayOption;
+
+            if (_trayOpenItem != null) _trayOpenItem.Text = I18n.TrayOpen;
+            if (_trayExitItem != null) _trayExitItem.Text = I18n.TrayExit;
+
+            if (!_engine.IsRunning && _statusBadge != null)
+            {
+                _statusBadge.Text = I18n.StatusIdle;
+            }
+        }
+
         private void StartRecordingHotkey(Button btn, int index)
         {
+            if (_activeRecordingButton != null)
+            {
+                CancelRecordingHotkey();
+            }
+
             _activeRecordingButton = btn;
             _recordingIndex = index;
             _hook.IsRecordingHotkey = true;
 
+            btn.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(50, 231, 76, 60));
+            btn.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(231, 76, 60));
+
             TextBlock tb = btn.Content as TextBlock;
             if (tb != null)
             {
-                tb.Text = "키 입력 대기 중...";
+                tb.Text = I18n.PressKey;
+                tb.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(231, 76, 60));
             }
         }
 
@@ -689,14 +912,61 @@ namespace KanaiHelper
                     tb.Text = binding.ToDisplayString();
                 }
 
+                System.Windows.Media.Color accent = GetAccentColorForIndex(_recordingIndex);
+                _activeRecordingButton.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(35, accent.R, accent.G, accent.B));
+                _activeRecordingButton.BorderBrush = new SolidColorBrush(accent);
+                if (tb != null) tb.Foreground = new SolidColorBrush(accent);
+
                 switch (_recordingIndex)
                 {
-                    case 1: _config.Hotkey1Slot = binding; break;
-                    case 2: _config.Hotkey2Slot = binding; break;
-                    case 3: _config.HotkeySalvage = binding; break;
-                    case 4: _config.HotkeyReforge = binding; break;
+                    case 1:
+                        _config.HotkeySalvage = binding;
+                        break;
+                    case 2:
+                        _config.Hotkey1Slot = binding;
+                        break;
+                    case 3:
+                        _config.Hotkey2Slot = binding;
+                        break;
+                    case 4:
+                        _config.HotkeyReforge = binding;
+                        break;
                 }
+
                 _config.Save();
+                _activeRecordingButton = null;
+            }
+        }
+
+        private void CancelRecordingHotkey()
+        {
+            if (_activeRecordingButton != null)
+            {
+                _hook.IsRecordingHotkey = false;
+                TextBlock tb = _activeRecordingButton.Content as TextBlock;
+                System.Windows.Media.Color accent = GetAccentColorForIndex(_recordingIndex);
+                _activeRecordingButton.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(35, accent.R, accent.G, accent.B));
+                _activeRecordingButton.BorderBrush = new SolidColorBrush(accent);
+
+                if (tb != null)
+                {
+                    switch (_recordingIndex)
+                    {
+                        case 1:
+                            tb.Text = _config.HotkeySalvage.ToDisplayString();
+                            break;
+                        case 2:
+                            tb.Text = _config.Hotkey1Slot.ToDisplayString();
+                            break;
+                        case 3:
+                            tb.Text = _config.Hotkey2Slot.ToDisplayString();
+                            break;
+                        case 4:
+                            tb.Text = _config.HotkeyReforge.ToDisplayString();
+                            break;
+                    }
+                    tb.Foreground = new SolidColorBrush(accent);
+                }
                 _activeRecordingButton = null;
             }
         }
@@ -704,7 +974,7 @@ namespace KanaiHelper
         private void SetupTrayIcon()
         {
             _notifyIcon = new System.Windows.Forms.NotifyIcon();
-            _notifyIcon.Text = "KanaiHelper v2.0";
+            _notifyIcon.Text = "KanaiHelper v1.0";
             _notifyIcon.Icon = GetAppIcon();
             _notifyIcon.Visible = true;
 
@@ -716,19 +986,22 @@ namespace KanaiHelper
             };
 
             System.Windows.Forms.ContextMenu menu = new System.Windows.Forms.ContextMenu();
-            menu.MenuItems.Add("열기 (Show)", delegate
+            _trayOpenItem = new System.Windows.Forms.MenuItem(I18n.TrayOpen, delegate
             {
                 Show();
                 WindowState = WindowState.Normal;
                 Activate();
             });
-            menu.MenuItems.Add("-");
-            menu.MenuItems.Add("종료 (Exit)", delegate
+            _trayExitItem = new System.Windows.Forms.MenuItem(I18n.TrayExit, delegate
             {
                 _notifyIcon.Visible = false;
                 _notifyIcon.Dispose();
                 Application.Current.Shutdown();
             });
+
+            menu.MenuItems.Add(_trayOpenItem);
+            menu.MenuItems.Add("-");
+            menu.MenuItems.Add(_trayExitItem);
 
             _notifyIcon.ContextMenu = menu;
         }
@@ -770,13 +1043,13 @@ namespace KanaiHelper
                     NativeMethods.RECT rc;
                     if (NativeMethods.GetClientRect(hWnd, out rc))
                     {
-                        _d3Indicator.Text = string.Format("● D3 연결됨 ({0}x{1})", rc.Width, rc.Height);
+                        _d3Indicator.Text = I18n.D3Detected(rc.Width, rc.Height);
                         _d3Indicator.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 204, 113));
                     }
                 }
                 else
                 {
-                    _d3Indicator.Text = "○ Diablo III 미실행";
+                    _d3Indicator.Text = I18n.D3Detecting;
                     _d3Indicator.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(140, 148, 165));
                 }
             };
@@ -796,3 +1069,4 @@ namespace KanaiHelper
         }
     }
 }
+

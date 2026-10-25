@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Threading;
 using System.Windows;
@@ -7,7 +7,7 @@ namespace KanaiHelper
 {
     public static class Program
     {
-        private const string MutexName = "Global\\KanaiHelper_v2_Mutex";
+        private const string MutexName = "Global\\KanaiHelper_v1_Mutex";
 
         [STAThread]
         public static void Main(string[] args)
@@ -17,7 +17,7 @@ namespace KanaiHelper
             {
                 if (!createdNew)
                 {
-                    IntPtr existingWnd = NativeMethods.FindWindow(null, "KanaiHelper v2.0");
+                    IntPtr existingWnd = NativeMethods.FindWindow(null, "KanaiHelper v1.0");
                     if (existingWnd != IntPtr.Zero)
                     {
                         // Restore and bring to front
@@ -43,3 +43,5 @@ namespace KanaiHelper
         }
     }
 }
+
+

@@ -70,7 +70,7 @@ namespace KanaiHelper
                 if (_isRunning && _cts != null && !_cts.IsCancellationRequested)
                 {
                     _cts.Cancel();
-                    EmitLog("ESC 감지: 매크로가 즉시 중단되었습니다.");
+                    EmitLog(I18n.LogEscAborted);
                 }
             }
         }
@@ -81,17 +81,20 @@ namespace KanaiHelper
             {
                 if (_isRunning)
                 {
-                    EmitLog("이미 매크로가 실행 중입니다. 무시됨.");
+                    EmitLog(I18n.LogMacroRunning);
                     return false;
                 }
                 _isRunning = true;
                 _cts = new CancellationTokenSource();
             }
 
-            Task.Factory.StartNew(delegate
+            Thread macroThread = new Thread(delegate()
             {
                 RunWorker(mode, _cts.Token);
             });
+            macroThread.IsBackground = true;
+            macroThread.Priority = ThreadPriority.Highest;
+            macroThread.Start();
 
             return true;
         }
@@ -101,10 +104,10 @@ namespace KanaiHelper
             NativeMethods.timeBeginPeriod(1);
             try
             {
-                EmitStatus("수식키(Ctrl 등) 릴리즈 대기 중...", true);
+                EmitStatus(I18n.StatusModifiers, true);
                 if (!WaitForModifiersReleased(3000, ct))
                 {
-                    EmitLog("수식키를 3초 내에 떼지 않아 취소되었습니다.");
+                    EmitLog(I18n.LogModifiersTimeout);
                     return;
                 }
 
@@ -114,15 +117,18 @@ namespace KanaiHelper
                 IntPtr hWnd = NativeMethods.FindWindow(D3_WINDOW_CLASS, null);
                 if (hWnd == IntPtr.Zero)
                 {
-                    EmitLog("오류: Diablo III 창을 찾을 수 없습니다.");
-                    EmitStatus("Diablo III 미실행", false);
+                    EmitLog(I18n.LogD3NotFound);
+                    EmitStatus(I18n.LogD3NotFound, false);
                     return;
                 }
+
+                // 디아블로 3 창을 확실하게 전면 활성화하여 '배경 FPS 제한(30fps/8fps)' 모드로 인한 50ms 지연 원천 방지
+                NativeMethods.SetForegroundWindow(hWnd);
 
                 NativeMethods.RECT clientRect;
                 if (!NativeMethods.GetClientRect(hWnd, out clientRect) || clientRect.Width <= 0 || clientRect.Height <= 0)
                 {
-                    EmitLog("오류: Diablo III 클라이언트 영역 크기를 가져오지 못했습니다.");
+                    EmitLog(I18n.LogD3NoClient);
                     return;
                 }
 
@@ -132,7 +138,7 @@ namespace KanaiHelper
                 int dWidth = clientRect.Width;
                 int dHeight = clientRect.Height;
 
-                EmitLog(string.Format("Diablo III 감지 완료 ({0}x{1})", dWidth, dHeight));
+                EmitLog(I18n.LogD3Detected(dWidth, dHeight));
 
                 // Base coordinates (for 3440x1440)
                 Point fill = ConvertCoord(957, 1121, 2, dWidth, dHeight, origin);
@@ -158,44 +164,44 @@ namespace KanaiHelper
                 switch (mode)
                 {
                     case MacroMode.Cube1Slot:
-                        EmitStatus("1칸 큐브 변환 실행 중...", true);
-                        EmitLog("1칸 아이템 큐브 변환 시작 (60칸)");
+                        EmitStatus(I18n.StatusCube1, true);
+                        EmitLog(I18n.LogCube1Start(sleepMs));
                         RunCubeMacro(1, columns, rows, topLeftInv, slotX, slotY, fill, transmute, switchPagesLeft, switchPagesRight, sleepMs, ct);
                         break;
 
                     case MacroMode.Cube2Slot:
-                        EmitStatus("2칸 큐브 변환 실행 중...", true);
-                        EmitLog("2칸 아이템 큐브 변환 시작 (30칸)");
+                        EmitStatus(I18n.StatusCube2, true);
+                        EmitLog(I18n.LogCube2Start(sleepMs));
                         RunCubeMacro(2, columns, rows, topLeftInv, slotX, slotY, fill, transmute, switchPagesLeft, switchPagesRight, sleepMs, ct);
                         break;
 
                     case MacroMode.Salvage:
-                        EmitStatus("인벤토리 분해 실행 중...", true);
-                        EmitLog("인벤토리 일괄 분해 시작 (가로 우선 60칸)");
+                        EmitStatus(I18n.StatusSalvage, true);
+                        EmitLog(I18n.LogSalvageStart(sleepMs));
                         RunSalvageMacro(salvage, columns, rows, topLeftInv, slotX, slotY, sleepMs, ct);
                         break;
 
                     case MacroMode.Reforge:
-                        EmitStatus("재련 1회 실행 중...", true);
-                        EmitLog("전설 재련 1회 시작 (첫 번째 슬롯)");
+                        EmitStatus(I18n.StatusReforge, true);
+                        EmitLog(I18n.LogReforgeStart(sleepMs));
                         RunReforgeMacro(topLeftInv, fill, transmute, switchPagesLeft, switchPagesRight, sleepMs, ct);
                         break;
                 }
 
                 if (!ct.IsCancellationRequested)
                 {
-                    EmitLog("작업이 성공적으로 완료되었습니다.");
-                    EmitStatus("대기 중", false);
+                    EmitLog(I18n.LogSuccess);
+                    EmitStatus(I18n.StatusIdle, false);
                 }
             }
             catch (OperationCanceledException)
             {
-                EmitStatus("중단됨 (ESC)", false);
+                EmitStatus(I18n.StatusStopped, false);
             }
             catch (Exception ex)
             {
-                EmitLog("오류 발생: " + ex.Message);
-                EmitStatus("오류 발생", false);
+                EmitLog(I18n.LogError(ex.Message));
+                EmitStatus(I18n.StatusError, false);
             }
             finally
             {
@@ -234,7 +240,7 @@ namespace KanaiHelper
 
                 // 3. Click Transmute
                 ClickMouse(transmute.X, transmute.Y, true, ct);
-                SleepWithCancel(sleepMs + 100, ct);
+                SleepWithCancel(sleepMs + 70, ct);
 
                 // 4. Switch Page Right
                 ClickMouse(switchRight.X, switchRight.Y, true, ct);
@@ -266,7 +272,7 @@ namespace KanaiHelper
             }
 
             // 디아블로 3 클라이언트가 마지막 페이지 넘김을 완전히 처리할 수 있도록 안정화 대기
-            SleepWithCancel(120, ct);
+            SleepWithCancel(70, ct);
         }
 
         private void RunSalvageMacro(Point salvageBtn, int columns, int rows, Point topLeftInv, int slotX, int slotY,
@@ -275,8 +281,9 @@ namespace KanaiHelper
             // 1. Click Blacksmith Salvage button first
             ClickMouse(salvageBtn.X, salvageBtn.Y, true, ct);
 
-            // AHK 원본과 완벽히 부합하는 안정적이고 빠른 분해 간격
-            int adjustedSleep = Math.Max((int)Math.Round(sleepMs * 0.4), 8);
+            // 슬라이더 GlobalSleep 값을 정직하게 반영 (하한선 8ms 락을 풀어 5~20ms 구간에서도 속도 변화 체감)
+            int adjustedSleep = Math.Max((int)Math.Round(sleepMs * 0.4), 3);
+            EmitLog(I18n.LogSalvageDelay(sleepMs, adjustedSleep));
             SleepWithCancel(adjustedSleep, ct);
 
             int totalCycles = columns * rows; // 60 slots
@@ -317,7 +324,7 @@ namespace KanaiHelper
             }
 
             // 마지막 ESC 처리가 디아블로 3 클라이언트에서 완료되어 UI가 정상 복귀할 수 있도록 안정화 대기
-            SleepWithCancel(120, ct);
+            SleepWithCancel(70, ct);
         }
 
         private void RunReforgeMacro(Point topLeftInv, Point fill, Point transmute, Point switchLeft, Point switchRight,
@@ -332,7 +339,7 @@ namespace KanaiHelper
             SleepWithCancel(sleepMs, ct);
 
             ClickMouse(transmute.X, transmute.Y, true, ct);
-            SleepWithCancel(sleepMs + 100, ct);
+            SleepWithCancel(sleepMs + 70, ct);
 
             ClickMouse(switchRight.X, switchRight.Y, true, ct);
             SleepWithCancel(sleepMs, ct);
@@ -341,7 +348,7 @@ namespace KanaiHelper
             SleepWithCancel(sleepMs, ct);
 
             NativeMethods.SetCursorPos(topLeftInv.X, topLeftInv.Y);
-            SleepWithCancel(120, ct);
+            SleepWithCancel(70, ct);
         }
 
         private Point ConvertCoord(int x, int y, int position, int dWidth, int dHeight, NativeMethods.POINT origin, bool isRelativeSize = false)
@@ -403,9 +410,30 @@ namespace KanaiHelper
         private void SleepWithCancel(int ms, CancellationToken ct)
         {
             if (ms <= 0) return;
-            if (ct.WaitHandle.WaitOne(ms))
-            {
+            if (ct.IsCancellationRequested)
                 throw new OperationCanceledException(ct);
+
+            long targetTicks = (long)(ms * (Stopwatch.Frequency / 1000.0));
+            long start = Stopwatch.GetTimestamp();
+
+            while (true)
+            {
+                if (ct.IsCancellationRequested)
+                    throw new OperationCanceledException(ct);
+
+                long elapsed = Stopwatch.GetTimestamp() - start;
+                if (elapsed >= targetTicks)
+                    break;
+
+                long remainingMs = (targetTicks - elapsed) * 1000 / Stopwatch.Frequency;
+                if (remainingMs >= 2)
+                {
+                    Thread.Sleep(0);
+                }
+                else
+                {
+                    Thread.SpinWait(100);
+                }
             }
         }
 

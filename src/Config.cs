@@ -129,6 +129,7 @@ namespace KanaiHelper
         public HotkeyBinding Hotkey2Slot { get; set; }
         public HotkeyBinding HotkeySalvage { get; set; }
         public HotkeyBinding HotkeyReforge { get; set; }
+        public string Language { get; set; }
         public bool MinimizeToTray { get; set; }
 
         private readonly string _iniPath;
@@ -136,10 +137,11 @@ namespace KanaiHelper
         public AppConfig(string iniPath)
         {
             _iniPath = iniPath;
-            GlobalSleep = 50;
-            Hotkey1Slot = new HotkeyBinding(true, false, false, false, '5');
-            Hotkey2Slot = new HotkeyBinding(true, false, false, false, '6');
-            HotkeySalvage = new HotkeyBinding(true, false, false, false, '7');
+            Language = "ko";
+            GlobalSleep = 20;
+            HotkeySalvage = new HotkeyBinding(true, false, false, false, '5');
+            Hotkey1Slot = new HotkeyBinding(true, false, false, false, '6');
+            Hotkey2Slot = new HotkeyBinding(true, false, false, false, '7');
             HotkeyReforge = new HotkeyBinding(true, false, false, false, '8');
             MinimizeToTray = true;
 
@@ -156,7 +158,12 @@ namespace KanaiHelper
 
             StringBuilder sb = new StringBuilder(256);
 
-            NativeMethods.GetPrivateProfileString("Settings", "Globalsleep", "50", sb, 256, _iniPath);
+            NativeMethods.GetPrivateProfileString("Settings", "Language", "ko", sb, 256, _iniPath);
+            string langStr = sb.ToString().Trim().ToLowerInvariant();
+            Language = (langStr == "en") ? "en" : "ko";
+            I18n.Language = Language;
+
+            NativeMethods.GetPrivateProfileString("Settings", "Globalsleep", "20", sb, 256, _iniPath);
             int sleepVal;
             if (int.TryParse(sb.ToString(), out sleepVal))
             {
@@ -164,13 +171,13 @@ namespace KanaiHelper
             }
 
             NativeMethods.GetPrivateProfileString("Hotkeys", "1", "^5", sb, 256, _iniPath);
-            Hotkey1Slot = HotkeyBinding.FromIniString(sb.ToString());
+            HotkeySalvage = HotkeyBinding.FromIniString(sb.ToString());
 
             NativeMethods.GetPrivateProfileString("Hotkeys", "2", "^6", sb, 256, _iniPath);
-            Hotkey2Slot = HotkeyBinding.FromIniString(sb.ToString());
+            Hotkey1Slot = HotkeyBinding.FromIniString(sb.ToString());
 
             NativeMethods.GetPrivateProfileString("Hotkeys", "3", "^7", sb, 256, _iniPath);
-            HotkeySalvage = HotkeyBinding.FromIniString(sb.ToString());
+            Hotkey2Slot = HotkeyBinding.FromIniString(sb.ToString());
 
             NativeMethods.GetPrivateProfileString("Hotkeys", "4", "^8", sb, 256, _iniPath);
             HotkeyReforge = HotkeyBinding.FromIniString(sb.ToString());
@@ -180,10 +187,11 @@ namespace KanaiHelper
         {
             try
             {
+                NativeMethods.WritePrivateProfileString("Settings", "Language", Language, _iniPath);
                 NativeMethods.WritePrivateProfileString("Settings", "Globalsleep", GlobalSleep.ToString(), _iniPath);
-                NativeMethods.WritePrivateProfileString("Hotkeys", "1", Hotkey1Slot.ToIniString(), _iniPath);
-                NativeMethods.WritePrivateProfileString("Hotkeys", "2", Hotkey2Slot.ToIniString(), _iniPath);
-                NativeMethods.WritePrivateProfileString("Hotkeys", "3", HotkeySalvage.ToIniString(), _iniPath);
+                NativeMethods.WritePrivateProfileString("Hotkeys", "1", HotkeySalvage.ToIniString(), _iniPath);
+                NativeMethods.WritePrivateProfileString("Hotkeys", "2", Hotkey1Slot.ToIniString(), _iniPath);
+                NativeMethods.WritePrivateProfileString("Hotkeys", "3", Hotkey2Slot.ToIniString(), _iniPath);
                 NativeMethods.WritePrivateProfileString("Hotkeys", "4", HotkeyReforge.ToIniString(), _iniPath);
             }
             catch { }

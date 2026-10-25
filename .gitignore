@@ -1,0 +1,24 @@
+# Build outputs / Executables
+*.exe
+*.dll
+*.pdb
+*.obj
+*.bin
+
+# Packaging / Release folders
+release/
+backup*/
+
+# OS / Temporary files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.BIN/
+*.tmp
+*.bak
+.DS_Store
+
+# IDE / Editor folders
+.vs/
+.vscode/
+.idea/
