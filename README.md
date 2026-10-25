@@ -1,4 +1,16 @@
-# KanaiHelper v1.0 Native
+# ⚡ KanaiHelper v1.0 Native
+
+<div align="center">
+
+### 🎮 [👉 최신 버전 원클릭 다운로드 (KanaiHelper_v1.0.0_Portable.zip)](https://github.com/keunseop/KanaiHelper/releases/latest/download/KanaiHelper_v1.0.0_Portable.zip) 📥
+
+> 💡 **별도의 설치나 소스코드 빌드가 전혀 필요 없습니다!**  
+> 위 파란색 다운로드 링크를 눌러 압축 파일(`.zip`)을 받으신 후,  
+> 압축을 풀고 **`KanaiHelper.exe`**를 실행하시면 즉시 사용하실 수 있습니다.
+
+---
+
+</div>
 
 > **디아블로 III 카나이의 함 변환 및 대장장이 분해 자동화 도구**  
 > AutoHotkey 의존성을 완전히 제거하고, 순수 C# (.NET Framework 4.0 / WPF) Windows 64-bit 네이티브로 전면 재설계된 초경량 고성능 유틸리티입니다.
