@@ -29,6 +29,11 @@ if (Test-Path $iconFile) {
     $args += "/win32icon:$iconFile"
 }
 
+$manifestFile = "$PSScriptRoot\app.manifest"
+if (Test-Path $manifestFile) {
+    $args += "/win32manifest:$manifestFile"
+}
+
 foreach ($r in $refs) {
     $args += "/r:$r"
 }
