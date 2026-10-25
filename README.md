@@ -17,6 +17,16 @@
 
 </div>
 
+<div align="center">
+
+### 🖥️ 프로그램 실행 화면 (Modern Dark UI Dashboard)
+
+<img src="assets/screenshot.png" alt="KanaiHelper GUI Dashboard" width="720">
+
+</div>
+
+---
+
 > **디아블로 III 카나이의 함 변환 및 대장장이 분해 자동화 도구**  
 > AutoHotkey 의존성을 완전히 제거하고, 순수 C# (.NET Framework 4.0 / WPF) Windows 64-bit 네이티브로 전면 재설계된 초경량 고성능 유틸리티입니다.
 
