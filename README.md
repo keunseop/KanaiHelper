@@ -4,13 +4,14 @@
 
 ### 🎮 [👉 최신 버전 원클릭 다운로드 (KanaiHelper_v1.1.0_Portable.zip)](https://github.com/keunseop/KanaiHelper/releases/latest/download/KanaiHelper_v1.1.0_Portable.zip) 📥
 
-[![VirusTotal Clean](https://img.shields.io/badge/VirusTotal-Clean-brightgreen?logo=virustotal&style=flat-square)](https://www.virustotal.com/gui/home/upload)
+[![VirusTotal Clean](https://img.shields.io/badge/VirusTotal-Clean%20(0%2F62)-brightgreen?logo=virustotal&style=flat-square)](https://www.virustotal.com/gui/file/7503ef0961cc02c13e33d0c93337eb69da3520ae4e783160d693c9167cac6880?nocache=1)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2064--bit-lightgrey?style=flat-square&logo=windows)](https://github.com/keunseop/KanaiHelper)
 
 > 💡 **별도의 설치나 소스코드 빌드가 전혀 필요 없습니다!**  
 > 위 다운로드 링크를 눌러 압축 파일(`.zip`)을 받으신 후,  
 > 압축을 풀고 **`KanaiHelper.exe`**를 실행하시면 즉시 사용하실 수 있습니다.  
+> 🛡️ [**VirusTotal 60여 개 백신 무결점(0/62 Clean) 검사 결과 실시간 확인**](https://www.virustotal.com/gui/file/7503ef0961cc02c13e33d0c93337eb69da3520ae4e783160d693c9167cac6880?nocache=1)  
 
 ---
 
