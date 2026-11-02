@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Threading;
@@ -25,18 +25,46 @@ namespace KanaiHelper
         private bool _isRunning;
         private readonly object _lock = new object();
 
+        // Auto-Repeat Skill Helper State (Toggle via F3)
+        private CancellationTokenSource _repeatCts;
+        private bool _isRepeatRunning;
+        private readonly object _repeatLock = new object();
+
+        // Hold-to-Repeat Mouse Watcher State (Independent of F3)
+        private volatile bool _disposed;
+
         public bool IsRunning
         {
             get { return _isRunning; }
         }
 
+        public bool IsRepeatRunning
+        {
+            get { return _isRepeatRunning; }
+        }
+
         public event Action<string> Log;
         public event Action<string, bool> StatusChanged;
         public event Action<int, int> ProgressChanged;
+        public event Action<bool> RepeatStatusChanged;
+        public event Action<bool, bool> HoldMouseStatusChanged;
 
         public MacroEngine(AppConfig config)
         {
             _config = config;
+            StartHoldMouseWatcher();
+        }
+
+        public void Shutdown()
+        {
+            _disposed = true;
+            StopRepeat();
+            Stop();
+        }
+
+        public void EmitCustomLog(string message)
+        {
+            EmitLog(message);
         }
 
         private void EmitLog(string message)
@@ -60,6 +88,282 @@ namespace KanaiHelper
             if (ProgressChanged != null)
             {
                 ProgressChanged(current, total);
+            }
+        }
+
+        private void EmitRepeatStatus(bool running)
+        {
+            if (RepeatStatusChanged != null)
+            {
+                RepeatStatusChanged(running);
+            }
+        }
+
+        public void ToggleRepeat()
+        {
+            if (_isRepeatRunning)
+            {
+                StopRepeat();
+            }
+            else
+            {
+                StartRepeat();
+            }
+        }
+
+        public void StartRepeat()
+        {
+            lock (_repeatLock)
+            {
+                if (_isRepeatRunning) return;
+                _isRepeatRunning = true;
+                _repeatCts = new CancellationTokenSource();
+            }
+
+            EmitRepeatStatus(true);
+            if (!_isRunning)
+            {
+                EmitStatus(I18n.StatusRepeatRunning(_config.ActiveRepeatPreset + 1), true);
+            }
+            EmitLog(I18n.LogRepeatStarted(_config.ActiveRepeatPreset + 1));
+
+            CancellationToken token = _repeatCts.Token;
+            Thread repeatThread = new Thread(delegate()
+            {
+                RunRepeatWorker(token);
+            });
+            repeatThread.IsBackground = true;
+            repeatThread.Priority = ThreadPriority.AboveNormal;
+            repeatThread.Start();
+        }
+
+        public void StopRepeat()
+        {
+            lock (_repeatLock)
+            {
+                if (!_isRepeatRunning) return;
+                _isRepeatRunning = false;
+                if (_repeatCts != null && !_repeatCts.IsCancellationRequested)
+                {
+                    _repeatCts.Cancel();
+                }
+            }
+
+            EmitRepeatStatus(false);
+            if (!_isRunning)
+            {
+                EmitStatus(I18n.StatusIdle, false);
+            }
+            EmitLog(I18n.LogRepeatStopped);
+        }
+
+        public void RefreshRepeatStatusBadge()
+        {
+            if (_isRepeatRunning && !_isRunning)
+            {
+                EmitStatus(I18n.StatusRepeatRunning(_config.ActiveRepeatPreset + 1), true);
+            }
+        }
+
+        private void StartHoldMouseWatcher()
+        {
+            Thread holdThread = new Thread(RunHoldMouseWorker);
+            holdThread.IsBackground = true;
+            holdThread.Priority = ThreadPriority.AboveNormal;
+            holdThread.Start();
+        }
+
+        private void RunHoldMouseWorker()
+        {
+            long nextLeftTick = 0;
+            long nextRightTick = 0;
+            bool lastLeftActive = false;
+            bool lastRightActive = false;
+            double ticksPerMs = Stopwatch.Frequency / 1000.0;
+
+            while (!_disposed)
+            {
+                try
+                {
+                    if (_isRunning || !GlobalHook.IsDiabloActive())
+                    {
+                        nextLeftTick = 0;
+                        nextRightTick = 0;
+                        if (lastLeftActive || lastRightActive)
+                        {
+                            lastLeftActive = false;
+                            lastRightActive = false;
+                            if (HoldMouseStatusChanged != null) HoldMouseStatusChanged(false, false);
+                        }
+                        Thread.Sleep(20);
+                        continue;
+                    }
+
+                    RepeatPreset preset = _config.GetActivePreset();
+                    bool leftHeld = IsBindingPhysicallyHeld(preset.LeftClickKey);
+                    bool rightHeld = IsBindingPhysicallyHeld(preset.RightClickKey);
+
+                    if (leftHeld != lastLeftActive || rightHeld != lastRightActive)
+                    {
+                        lastLeftActive = leftHeld;
+                        lastRightActive = rightHeld;
+                        if (HoldMouseStatusChanged != null) HoldMouseStatusChanged(leftHeld, rightHeld);
+                    }
+
+                    if (!leftHeld && !rightHeld)
+                    {
+                        nextLeftTick = 0;
+                        nextRightTick = 0;
+                        Thread.Sleep(12);
+                        continue;
+                    }
+
+                    long now = Stopwatch.GetTimestamp();
+
+                    if (leftHeld)
+                    {
+                        int interval = preset.LeftClickIntervalMs > 0 ? Math.Max(10, preset.LeftClickIntervalMs) : 50; // 0 = default 50ms
+                        if (now >= nextLeftTick)
+                        {
+                            SendRepeatMouseClick(NativeMethods.VK_LBUTTON);
+                            nextLeftTick = now + (long)(interval * ticksPerMs);
+                        }
+                    }
+                    else
+                    {
+                        nextLeftTick = 0;
+                    }
+
+                    if (rightHeld)
+                    {
+                        int interval = preset.RightClickIntervalMs > 0 ? Math.Max(10, preset.RightClickIntervalMs) : 50; // 0 = default 50ms
+                        if (now >= nextRightTick)
+                        {
+                            SendRepeatMouseClick(NativeMethods.VK_RBUTTON);
+                            nextRightTick = now + (long)(interval * ticksPerMs);
+                        }
+                    }
+                    else
+                    {
+                        nextRightTick = 0;
+                    }
+
+                    Thread.Sleep(2);
+                }
+                catch
+                {
+                    Thread.Sleep(20);
+                }
+            }
+        }
+
+        private bool IsBindingPhysicallyHeld(HotkeyBinding b)
+        {
+            if (b == null || b.KeyCode == 0) return false;
+            // Avoid self-feedback loop if someone sets Left/Right mouse button itself as a hold key
+            if (b.KeyCode == NativeMethods.VK_LBUTTON || b.KeyCode == NativeMethods.VK_RBUTTON) return false;
+
+            if ((NativeMethods.GetAsyncKeyState(b.KeyCode) & 0x8000) == 0) return false;
+            if (b.Ctrl && (NativeMethods.GetAsyncKeyState(NativeMethods.VK_CONTROL) & 0x8000) == 0) return false;
+            if (b.Shift && (NativeMethods.GetAsyncKeyState(NativeMethods.VK_SHIFT) & 0x8000) == 0) return false;
+            if (b.Alt && (NativeMethods.GetAsyncKeyState(NativeMethods.VK_MENU) & 0x8000) == 0) return false;
+            return true;
+        }
+
+        private void RunRepeatWorker(CancellationToken ct)
+        {
+            NativeMethods.timeBeginPeriod(1);
+            try
+            {
+                long[] nextSkillTick = new long[6];
+                int lastPresetIdx = -1;
+                double ticksPerMs = Stopwatch.Frequency / 1000.0;
+
+                while (!ct.IsCancellationRequested)
+                {
+                    // Pause automatic skill pressing while a one-shot Kanai/Salvage macro is active
+                    // or when Diablo III is not the active foreground window
+                    if (_isRunning || !GlobalHook.IsDiabloActive())
+                    {
+                        Array.Clear(nextSkillTick, 0, 6);
+                        if (ct.WaitHandle.WaitOne(20)) break;
+                        continue;
+                    }
+
+                    int curPresetIdx = _config.ActiveRepeatPreset;
+                    if (curPresetIdx != lastPresetIdx)
+                    {
+                        Array.Clear(nextSkillTick, 0, 6);
+                        lastPresetIdx = curPresetIdx;
+                    }
+
+                    RepeatPreset preset = _config.GetActivePreset();
+                    long now = Stopwatch.GetTimestamp();
+
+                    // Process 6 Skill Slots
+                    for (int i = 0; i < 6; i++)
+                    {
+                        if (ct.IsCancellationRequested) break;
+                        SkillSlotConfig slot = preset.Skills[i];
+                        if (slot != null && slot.Enabled && slot.Key != null && slot.Key.KeyCode != 0 && slot.IntervalMs > 0)
+                        {
+                            int interval = Math.Max(10, slot.IntervalMs);
+                            if (now >= nextSkillTick[i])
+                            {
+                                SendRepeatBinding(slot.Key);
+                                nextSkillTick[i] = now + (long)(interval * ticksPerMs);
+                            }
+                        }
+                    }
+
+                    if (ct.WaitHandle.WaitOne(2)) break;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception)
+            {
+            }
+            finally
+            {
+                NativeMethods.timeEndPeriod(1);
+            }
+        }
+
+        private void SendRepeatBinding(HotkeyBinding binding)
+        {
+            if (binding == null || binding.KeyCode == 0) return;
+
+            int vk = binding.KeyCode;
+            if (vk == NativeMethods.VK_LBUTTON || vk == NativeMethods.VK_RBUTTON || vk == NativeMethods.VK_MBUTTON)
+            {
+                SendRepeatMouseClick(vk);
+                return;
+            }
+
+            byte bVk = (byte)vk;
+            byte scan = (byte)NativeMethods.MapVirtualKey((uint)vk, 0);
+            NativeMethods.keybd_event(bVk, scan, 0, NativeMethods.MACRO_INPUT_SIGNATURE);
+            NativeMethods.keybd_event(bVk, scan, NativeMethods.KEYEVENTF_KEYUP, NativeMethods.MACRO_INPUT_SIGNATURE);
+        }
+
+        private void SendRepeatMouseClick(int vkMouse)
+        {
+            if (vkMouse == NativeMethods.VK_LBUTTON)
+            {
+                NativeMethods.mouse_event(NativeMethods.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, NativeMethods.MACRO_INPUT_SIGNATURE);
+                NativeMethods.mouse_event(NativeMethods.MOUSEEVENTF_LEFTUP, 0, 0, 0, NativeMethods.MACRO_INPUT_SIGNATURE);
+            }
+            else if (vkMouse == NativeMethods.VK_RBUTTON)
+            {
+                NativeMethods.mouse_event(NativeMethods.MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, NativeMethods.MACRO_INPUT_SIGNATURE);
+                NativeMethods.mouse_event(NativeMethods.MOUSEEVENTF_RIGHTUP, 0, 0, 0, NativeMethods.MACRO_INPUT_SIGNATURE);
+            }
+            else if (vkMouse == NativeMethods.VK_MBUTTON)
+            {
+                NativeMethods.mouse_event(NativeMethods.MOUSEEVENTF_MIDDLEDOWN, 0, 0, 0, NativeMethods.MACRO_INPUT_SIGNATURE);
+                NativeMethods.mouse_event(NativeMethods.MOUSEEVENTF_MIDDLEUP, 0, 0, 0, NativeMethods.MACRO_INPUT_SIGNATURE);
             }
         }
 
@@ -122,7 +426,6 @@ namespace KanaiHelper
                     return;
                 }
 
-                // 디아블로 3 창을 확실하게 전면 활성화하여 '배경 FPS 제한(30fps/8fps)' 모드로 인한 50ms 지연 원천 방지
                 NativeMethods.SetForegroundWindow(hWnd);
 
                 NativeMethods.RECT clientRect;
@@ -191,12 +494,26 @@ namespace KanaiHelper
                 if (!ct.IsCancellationRequested)
                 {
                     EmitLog(I18n.LogSuccess);
-                    EmitStatus(I18n.StatusIdle, false);
+                    if (_isRepeatRunning)
+                    {
+                        EmitStatus(I18n.StatusRepeatRunning(_config.ActiveRepeatPreset + 1), true);
+                    }
+                    else
+                    {
+                        EmitStatus(I18n.StatusIdle, false);
+                    }
                 }
             }
             catch (OperationCanceledException)
             {
-                EmitStatus(I18n.StatusStopped, false);
+                if (_isRepeatRunning)
+                {
+                    EmitStatus(I18n.StatusRepeatRunning(_config.ActiveRepeatPreset + 1), true);
+                }
+                else
+                {
+                    EmitStatus(I18n.StatusStopped, false);
+                }
             }
             catch (Exception ex)
             {
@@ -230,27 +547,21 @@ namespace KanaiHelper
                 int clickX = topLeftInv.X + slotX * col;
                 int clickY = topLeftInv.Y + slotY * row;
 
-                // 1. Right click item
                 ClickMouse(clickX, clickY, false, ct);
                 SleepWithCancel(sleepMs, ct);
 
-                // 2. Click Fill
                 ClickMouse(fill.X, fill.Y, true, ct);
                 SleepWithCancel(sleepMs, ct);
 
-                // 3. Click Transmute
                 ClickMouse(transmute.X, transmute.Y, true, ct);
                 SleepWithCancel(sleepMs + 70, ct);
 
-                // 4. Switch Page Right
                 ClickMouse(switchRight.X, switchRight.Y, true, ct);
                 SleepWithCancel(sleepMs, ct);
 
-                // 5. Switch Page Left
                 ClickMouse(switchLeft.X, switchLeft.Y, true, ct);
                 SleepWithCancel(sleepMs, ct);
 
-                // Advance coordinates
                 if (itemSize == 2)
                 {
                     col++;
@@ -271,22 +582,19 @@ namespace KanaiHelper
                 }
             }
 
-            // 디아블로 3 클라이언트가 마지막 페이지 넘김을 완전히 처리할 수 있도록 안정화 대기
             SleepWithCancel(70, ct);
         }
 
         private void RunSalvageMacro(Point salvageBtn, int columns, int rows, Point topLeftInv, int slotX, int slotY,
             int sleepMs, CancellationToken ct)
         {
-            // 1. Click Blacksmith Salvage button first
             ClickMouse(salvageBtn.X, salvageBtn.Y, true, ct);
 
-            // 슬라이더 GlobalSleep 값을 정직하게 반영 (하한선 8ms 락을 풀어 5~20ms 구간에서도 속도 변화 체감)
             int adjustedSleep = Math.Max((int)Math.Round(sleepMs * 0.4), 3);
             EmitLog(I18n.LogSalvageDelay(sleepMs, adjustedSleep));
             SleepWithCancel(adjustedSleep, ct);
 
-            int totalCycles = columns * rows; // 60 slots
+            int totalCycles = columns * rows;
             int col = 0;
             int row = 0;
 
@@ -298,23 +606,18 @@ namespace KanaiHelper
                 int clickX = topLeftInv.X + slotX * col;
                 int clickY = topLeftInv.Y + slotY * row;
 
-                // 2. 아이템 클릭
                 SleepWithCancel(adjustedSleep, ct);
                 ClickMouse(clickX, clickY, true, ct);
 
-                // 3. 전설 팝업 확인용 첫 번째 Enter
                 SleepWithCancel(adjustedSleep, ct);
                 SendKey((byte)NativeMethods.VK_RETURN, ct);
 
-                // 4. 확인 팝업 승인용 두 번째 Enter
                 SleepWithCancel(adjustedSleep, ct);
                 SendKey((byte)NativeMethods.VK_RETURN, ct);
 
-                // 5. 팝업 잔류 해제 및 모드 안전 복귀용 ESC
                 SleepWithCancel(adjustedSleep, ct);
                 SendKey((byte)NativeMethods.VK_ESCAPE, ct);
 
-                // Salvage is strictly row-major (horizontal first, row by row)
                 col++;
                 if (col > 9 && row < 5)
                 {
@@ -323,7 +626,6 @@ namespace KanaiHelper
                 }
             }
 
-            // 마지막 ESC 처리가 디아블로 3 클라이언트에서 완료되어 UI가 정상 복귀할 수 있도록 안정화 대기
             SleepWithCancel(70, ct);
         }
 
@@ -363,15 +665,15 @@ namespace KanaiHelper
                 return new Point((int)Math.Round(resX), (int)Math.Round(resY));
             }
 
-            if (position == 1) // Center
+            if (position == 1)
             {
                 resX = x * scaleH + (dWidth - NativeDiabloWidth * scaleH) / 2.0;
             }
-            else if (position == 2 || position == 4) // Left
+            else if (position == 2 || position == 4)
             {
                 resX = x * scaleH;
             }
-            else if (position == 3) // Right
+            else if (position == 3)
             {
                 resX = dWidth - (NativeDiabloWidth - x) * scaleH;
             }
@@ -468,12 +770,9 @@ namespace KanaiHelper
 
         private void ReleaseStuckModifiers()
         {
-            // 마우스 버튼이 눌린 상태로 남아있지 않도록 마우스 좌/우 버튼 강제 릴리즈 (우클릭 먹통 방지)
             NativeMethods.mouse_event(NativeMethods.MOUSEEVENTF_LEFTUP, 0, 0, 0, UIntPtr.Zero);
             NativeMethods.mouse_event(NativeMethods.MOUSEEVENTF_RIGHTUP, 0, 0, 0, UIntPtr.Zero);
 
-            // 단축키(Ctrl+5~8)를 누른 후 손을 떼는 과정에서 디아블로 3에 Ctrl/Shift가 눌린 채로 고정되는 현상을 완벽하게 해제.
-            // (Ctrl이 남아있으면 스킬 키 및 마우스 우클릭이 Ctrl+우클릭(무반응)으로 인식되어 게임 조작이 먹통됨)
             int[] modifierVks = new int[] {
                 NativeMethods.VK_LCONTROL, NativeMethods.VK_RCONTROL,
                 NativeMethods.VK_CONTROL,

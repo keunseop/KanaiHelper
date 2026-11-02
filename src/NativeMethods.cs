@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 
 namespace KanaiHelper
@@ -15,6 +15,8 @@ namespace KanaiHelper
         public const uint MOUSEEVENTF_LEFTUP = 0x0004;
         public const uint MOUSEEVENTF_RIGHTDOWN = 0x0008;
         public const uint MOUSEEVENTF_RIGHTUP = 0x0010;
+        public const uint MOUSEEVENTF_MIDDLEDOWN = 0x0020;
+        public const uint MOUSEEVENTF_MIDDLEUP = 0x0040;
 
         public const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
         public const uint KEYEVENTF_KEYUP = 0x0002;
@@ -25,8 +27,11 @@ namespace KanaiHelper
 
         public const int VK_LBUTTON = 0x01;
         public const int VK_RBUTTON = 0x02;
+        public const int VK_MBUTTON = 0x04;
+        public const int VK_BACK = 0x08;
         public const int VK_ESCAPE = 0x1B;
         public const int VK_RETURN = 0x0D;
+        public const int VK_DELETE = 0x2E;
         public const int VK_CONTROL = 0x11;
         public const int VK_LCONTROL = 0xA2;
         public const int VK_RCONTROL = 0xA3;

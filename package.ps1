@@ -5,7 +5,7 @@ Write-Host "  KanaiHelper 諛고룷 ?⑦궎吏(Distribution) ?앹꽦 ?쒖옉  
 Write-Host "==================================================" -ForegroundColor Cyan
 
 $rootDir = $PSScriptRoot
-$version = "v1.0.0"
+$version = "v1.1.0"
 $releaseDir = Join-Path $rootDir "release"
 $portableDirName = "KanaiHelper_${version}_Portable"
 $targetDir = Join-Path $releaseDir $portableDirName

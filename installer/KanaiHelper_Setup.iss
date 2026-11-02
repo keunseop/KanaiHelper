@@ -2,7 +2,7 @@
 ; Free installer creator: https://jrsoftware.org/isdl.php
 
 #define MyAppName "KanaiHelper"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "KanaiHelper Project"
 #define MyAppExeName "KanaiHelper.exe"
 

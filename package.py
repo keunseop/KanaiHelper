@@ -7,11 +7,11 @@ import zipfile
 
 def run():
     print("=" * 60)
-    print("  KanaiHelper v1.0.0 Distribution Packaging")
+    print("  KanaiHelper v1.1.0 Distribution Packaging")
     print("=" * 60)
 
     root_dir = os.path.dirname(os.path.abspath(__file__))
-    version = "v1.0.0"
+    version = "v1.1.0"
     release_dir = os.path.join(root_dir, "release")
     portable_dir_name = f"KanaiHelper_{version}_Portable"
     target_dir = os.path.join(release_dir, portable_dir_name)
@@ -49,6 +49,101 @@ Globalsleep=20
 2=^6
 3=^7
 4=^8
+[Repeat]
+ToggleKey=F3
+ActivePreset=0
+[RepeatPreset1]
+LeftClickKey=
+LeftClickMs=0
+RightClickKey=
+RightClickMs=0
+Skill1Enabled=1
+Skill1Key=MouseRight
+Skill1Ms=30
+Skill2Enabled=1
+Skill2Key=1
+Skill2Ms=300
+Skill3Enabled=1
+Skill3Key=2
+Skill3Ms=3000
+Skill4Enabled=1
+Skill4Key=3
+Skill4Ms=1000
+Skill5Enabled=1
+Skill5Key=4
+Skill5Ms=2000
+Skill6Enabled=1
+Skill6Key=
+Skill6Ms=0
+[RepeatPreset2]
+LeftClickKey=
+LeftClickMs=0
+RightClickKey=
+RightClickMs=0
+Skill1Enabled=1
+Skill1Key=
+Skill1Ms=0
+Skill2Enabled=1
+Skill2Key=
+Skill2Ms=0
+Skill3Enabled=1
+Skill3Key=
+Skill3Ms=0
+Skill4Enabled=1
+Skill4Key=
+Skill4Ms=0
+Skill5Enabled=1
+Skill5Key=
+Skill5Ms=0
+Skill6Enabled=1
+Skill6Key=
+Skill6Ms=0
+[RepeatPreset3]
+LeftClickKey=
+LeftClickMs=0
+RightClickKey=
+RightClickMs=0
+Skill1Enabled=1
+Skill1Key=
+Skill1Ms=0
+Skill2Enabled=1
+Skill2Key=
+Skill2Ms=0
+Skill3Enabled=1
+Skill3Key=
+Skill3Ms=0
+Skill4Enabled=1
+Skill4Key=
+Skill4Ms=0
+Skill5Enabled=1
+Skill5Key=
+Skill5Ms=0
+Skill6Enabled=1
+Skill6Key=
+Skill6Ms=0
+[RepeatPreset4]
+LeftClickKey=
+LeftClickMs=0
+RightClickKey=
+RightClickMs=0
+Skill1Enabled=1
+Skill1Key=
+Skill1Ms=0
+Skill2Enabled=1
+Skill2Key=
+Skill2Ms=0
+Skill3Enabled=1
+Skill3Key=
+Skill3Ms=0
+Skill4Enabled=1
+Skill4Key=
+Skill4Ms=0
+Skill5Enabled=1
+Skill5Key=
+Skill5Ms=0
+Skill6Enabled=1
+Skill6Key=
+Skill6Ms=0
 """
     with open(os.path.join(target_dir, "Hotkeys.ini"), "w", encoding="utf-8") as f:
         f.write(ini_content)
@@ -67,7 +162,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$shortcut.TargetPath = $target; " ^
   "$shortcut.WorkingDirectory = $PSScriptRoot; " ^
   "$shortcut.IconLocation = $target + ',0'; " ^
-  "$shortcut.Description = 'Diablo III Kanai & Salvage Macro Helper'; " ^
+  "$shortcut.Description = 'Diablo III Kanai, Salvage & Skill Helper'; " ^
   "$shortcut.Save();"
 
 if %errorlevel% equ 0 (
@@ -85,7 +180,8 @@ pause
         f.write(shortcut_bat)
 
     readme_ko = f"""======================================================================
-  KanaiHelper {version} - 디아블로 III 카나이의 함 & 분해 유틸리티 (사용 가이드)
+  KanaiHelper {version} - 디아블로 III 종합 편의 유틸리티 (사용 가이드)
+  [ 카나이의 함 변환 · 인벤토리 일괄 분해 · 스킬 반복키 · 마우스 연타 ]
 ======================================================================
 
 [1] 프로그램 소개
@@ -93,23 +189,41 @@ pause
   Windows 64-bit 고성능 초경량 매크로 유틸리티입니다.
 - CPU 고정밀 하드웨어 타이머(QPC) 기반으로 어떤 PC 환경에서도 입력 밀림 없이
   정확하고 일관된 반응 속도를 보장합니다.
+- 상단 탭을 통해 [카나이/분해 매크로]와 [스킬 반복키]를 언제든 전환할 수 있습니다.
 - 상단 헤더의 [🌐 English] 버튼을 누르면 언제든지 영어 모드로 전환할 수 있습니다.
 
 ----------------------------------------------------------------------
-[2] 기본 단축키 및 기능 안내
+[2] 주요 기능 및 기본 단축키
 ----------------------------------------------------------------------
+
+1. 🔨 카나이 / 분해 매크로
 * Ctrl + 5 : 인벤토리 일괄 분해 (대장장이 창에서 가로 우선 60칸)
-             - 대장장이 창의 분해 모드로 진입한 후 누르면 가로 1칸 단위로 전설 확인 승인(Enter)을 거치며 일괄 분해합니다.
+             - 대장장이 창의 분해 모드로 진입한 후 누르면 가로 1칸 단위로
+               전설 확인 승인(Enter)을 거치며 일괄 분해합니다.
 * Ctrl + 6 : 1칸 아이템 카나이의 함 일괄 변환 (반지, 목걸이, 보석 등 60칸)
              - 인벤토리 60칸을 세로 우선으로 순회하며 우클릭 -> 채우기 -> 변환을 수행합니다.
 * Ctrl + 7 : 2칸 아이템 카나이의 함 일괄 변환 (무기, 방어구 등 30칸)
              - 무기/방어구 규격에 맞춰 가로 우선으로 2행씩 건너뛰며 총 30칸을 수행합니다.
 * Ctrl + 8 : 전설 아이템 재련 1회 (인벤토리 맨 첫 번째 칸)
-             - 1번 칸의 아이템을 1회 재련 후 마우스를 다시 1번 칸에 올려 결과를 바로 확인합니다. (반복 입력 가능)
-* ESC      : 긴급 중단 (매크로 동작 중 언제든 누르면 0.001초 이내 즉각 안전 중단!)
+             - 1번 칸의 아이템을 1회 재련 후 마우스를 다시 1번 칸에 올려 결과를 확인합니다.
+* ESC      : 긴급 즉시 중단 (매크로 동작 중 언제든 누르면 0.001초 이내 안전 중단!)
 
-※ 단축키는 프로그램 화면에서 원하는 버튼을 클릭하여 원하는 키로 언제든지 자유롭게 변경할 수 있습니다.
-※ 단축키를 누른 후 키(Ctrl 등)에서 손을 떼는 순간 매크로가 안전하게 시작됩니다.
+2. 🔄 스킬 반복키 (D3 Helper 기능)
+* F3       : 스킬 자동 반복 시작 / 정지 토글 (다시 누르면 정지, 변경 가능)
+             - 기술 1~6 슬롯에 설정된 키(키보드 또는 마우스)를 설정한 주기(ms)마다 자동 반복.
+             - 세팅 1 ~ 세팅 4 프리셋을 지원하여 캐릭터/빌드별 설정을 저장하고 전환 가능.
+             - 디아블로 III 게임 창이 활성화되어 있을 때만 안전하게 입력됩니다.
+* 마우스 연타 (Hold-to-Repeat):
+             - 누르고 있는 동안만 좌클릭/우클릭을 고속 연타하며, 손을 떼면 즉시 멈춥니다.
+             - F3 스킬 반복과 독립적으로 동작합니다.
+             - 좌클릭 연타: 바닥 아이템 줍기 등에 유용
+             - 우클릭 연타: 핏빛 파편 갬블(카달라) 등에 유용
+             - 반복 간격을 0으로 설정하면 기본 50ms로 동작합니다.
+* 설정 저장/불러오기:
+             - 반복키 설정 변경 후 [저장하기] 버튼을 눌러야 Hotkeys.ini에 저장됩니다.
+             - [불러오기]를 누르면 마지막으로 저장된 설정값으로 복구됩니다.
+
+※ 카나이 단축키 및 스킬 반복키는 대시보드 화면의 버튼을 클릭하여 원하는 키로 자유롭게 변경 가능합니다.
 
 ----------------------------------------------------------------------
 [3] 필수 게임 내 설정 (반드시 확인해 주세요!)
@@ -129,14 +243,15 @@ pause
      원하는 레시피 페이지(예: 3페이지 희귀 아이템 업그레이드)를 펼쳐놓고 단축키를 누르세요.
 
 4. 대장장이 분해 사용 시:
-   - 대장장이 창을 열고 '분해' 아이콘을 눌러 망치 커서 상태로 만든 뒤 Ctrl+7을 누르세요.
+   - 대장장이 창을 열고 '분해' 아이콘을 눌러 망치 커서 상태로 만든 뒤 Ctrl+5를 누르세요.
 
 ----------------------------------------------------------------------
 [4] 유용한 팁
 ----------------------------------------------------------------------
 - '바탕화면_바로가기_만들기.bat'을 더블 클릭하시면 바탕화면에 호라드림 큐브 아이콘 바로가기가 생성됩니다.
 - 창 오른쪽 상단의 닫기(X) 버튼을 누르면 작업 표시줄 시스템 트레이로 최소화되어 백그라운드에 상주합니다.
-- 매크로 동작 속도(Interval)는 하단 슬라이더로 조절할 수 있습니다 (기본 20ms 권장, PC 사양/네트워크에 따라 조절).
+- 각 기능 섹션 제목 옆의 '?' 버튼에 마우스를 올리거나 클릭하시면 간편 도움말 레이어가 표시됩니다.
+- 카나이 매크로 동작 속도(Interval)는 하단 슬라이더로 조절할 수 있습니다 (기본 20ms 권장).
 - 프로그램을 완전히 종료하려면 시스템 트레이 아이콘을 우클릭하여 [종료]를 누르시면 됩니다.
 
 ======================================================================
@@ -145,18 +260,22 @@ pause
         f.write(readme_ko)
 
     readme_en = f"""======================================================================
-  KanaiHelper {version} - Diablo III Kanai's Cube & Salvage Helper (User Guide)
+  KanaiHelper {version} - Diablo III Utility Suite (User Guide)
+  [ Kanai's Cube · Batch Salvage · Skill Auto-Repeat · Mouse Rapid-Click ]
 ======================================================================
 
 [1] Introduction
 - Portable, high-performance Windows 64-bit native macro utility.
 - Powered by CPU hardware timer (QPC) ensuring jitter-free, consistent timing across all PCs.
 - No installation required: Unzip and run 'KanaiHelper.exe' immediately.
+- Use top tabs to switch between [Kanai / Salvage] and [Skill Auto-Repeat] modes.
 - Click the top-right [🌐 한국어] button anytime to switch the language to Korean.
 
 ----------------------------------------------------------------------
-[2] Default Hotkeys & Features
+[2] Key Features & Default Hotkeys
 ----------------------------------------------------------------------
+
+1. 🔨 Kanai / Salvage Macros
 * Ctrl + 5 : Inventory Batch Salvage (All 60 slots in Blacksmith window)
              - Salvages row-by-row with confirmation prompts (Enter x2).
 * Ctrl + 6 : 1-Slot Item Cube Converter (Rings, Amulets, Gems - 60 slots)
@@ -164,11 +283,25 @@ pause
 * Ctrl + 7 : 2-Slot Item Cube Converter (Weapons, Armors - 30 slots)
              - Loops horizontally, skipping 2 rows to process 30 full 2-slot items.
 * Ctrl + 8 : Legendary Item Reforge (Slot 1 in inventory)
-             - Reforges the top-left item once and restores cursor to check stats.
+             - Reforges the top-left item once and restores cursor to inspect stats.
 * ESC      : Emergency Stop (Aborts macro instantly within 0.001s!)
 
-※ Hotkeys can be customized freely by clicking the buttons on the dashboard.
-※ Macros start the moment modifier keys (Ctrl) are released.
+2. 🔄 Skill Auto-Repeat (D3 Helper Functionality)
+* F3       : Toggle Skill Auto-Repeat Start / Stop (Press again to stop, customizable)
+             - Automatically triggers keys (keyboard or mouse) for Skills 1-6 at set intervals (ms).
+             - Supports Presets 1 to 4 for managing multiple character classes and builds.
+             - Only inputs when Diablo III is the active foreground window.
+* Mouse Rapid-Click (Hold-to-Repeat):
+             - Rapid-clicks Left or Right mouse button ONLY while you hold the assigned key.
+             - Works independently of the F3 skill auto-repeat toggle.
+             - Left-Click: Excellent for rapid loot/item pickup.
+             - Right-Click: Excellent for blood shard Kadala gambling.
+             - Setting interval to 0 uses the default 50ms rapid pace.
+* Save / Load Configuration:
+             - Click [Save] after adjusting repeat settings to write changes to Hotkeys.ini.
+             - Click [Load] to revert back to your last saved configuration.
+
+※ All hotkeys can be customized directly by clicking their buttons on the dashboard.
 
 ----------------------------------------------------------------------
 [3] Mandatory Prerequisites (Please Check!)
@@ -185,17 +318,18 @@ pause
 
 3. Kanai's Cube Recipes:
    - Open Kanai's Cube, prepare items/materials, and navigate to the desired recipe page
-     (e.g., Page 3: Upgrade Rare Item) before pressing Ctrl+5 or Ctrl+6.
+     (e.g., Page 3: Upgrade Rare Item) before pressing Ctrl+6 or Ctrl+7.
 
 4. Blacksmith Salvage:
-   - Open the Blacksmith window, click the salvage hammer icon, and press Ctrl+7.
+   - Open the Blacksmith window, click the salvage hammer icon, and press Ctrl+5.
 
 ----------------------------------------------------------------------
 [4] Handy Tips
 ----------------------------------------------------------------------
 - Double-click '바탕화면_바로가기_만들기.bat' to create a desktop shortcut with the Horadric Cube icon.
 - Closing the window (X) minimizes the app to the system tray, remaining active in the background.
-- Adjust macro action speed via the bottom slider (Default 20ms recommended).
+- Hover or click the '?' button next to section headers to open an instant help layer.
+- Adjust Kanai macro action speed via the bottom slider (Default 20ms recommended).
 - Right-click the system tray icon and select [Exit] to fully terminate the app.
 
 ======================================================================

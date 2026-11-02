@@ -2,7 +2,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 
 [assembly: AssemblyTitle("KanaiHelper")]
-[assembly: AssemblyDescription("Diablo III Kanai's Cube and Salvage Automation Utility")]
+[assembly: AssemblyDescription("Diablo III Kanai's Cube, Salvage and Skill Repeat Automation Utility")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("KanaiHelper Project")]
 [assembly: AssemblyProduct("KanaiHelper")]
@@ -13,5 +13,5 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 [assembly: Guid("8d3f1a2b-9e4c-4e7a-b5d2-1c6f8a3b5e7d")]
 
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]

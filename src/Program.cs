@@ -17,7 +17,7 @@ namespace KanaiHelper
             {
                 if (!createdNew)
                 {
-                    IntPtr existingWnd = NativeMethods.FindWindow(null, "KanaiHelper v1.0");
+                    IntPtr existingWnd = NativeMethods.FindWindow(null, "KanaiHelper v1.1");
                     if (existingWnd != IntPtr.Zero)
                     {
                         // Restore and bring to front
